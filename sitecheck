@@ -1,0 +1,72 @@
+function myFunction() {
+//BASIC認証のアクセス情報
+const USER_ID = "********"
+const USER_PASS = "******"
+
+//アクセスURL
+const URL = "https://blog.*******************/********/*******/"
+  
+//BASIC認証用のヘッダー作成
+const OPTION = {
+  "headers" : {"Authorization" : " Basic " + Utilities.base64Encode(USER_ID + ":" + USER_PASS)}
+};
+
+//webページの取得
+const response = UrlFetchApp.fetch(URL,OPTION);
+const text = response.getContentText("UTF-8");
+const output = text.split('\n');
+
+ for(let i=0;i<output.length;i++){
+
+     console.log(output[i]);
+
+ }
+
+//最新投稿のブロックを抽出
+const topic_block = Parser.data(text).from('class="entry--has_media__body"').to('</div>').build();
+// console.log(topic_block);
+
+// 最新投稿のタイトルを取得
+const noticeStrings = Parser.data(topic_block).from('/">').to('</a></h1>').iterate();
+const newString = noticeStrings[0]
+
+// 最新投稿の記事URLを取得
+const detailsUrls = Parser.data(topic_block).from('<a href="').to('">').iterate();
+const newDetailsUrl = detailsUrls[0]
+
+//URLをハッシュ値化。
+const hashValue = makeHash(newDetailsUrl);
+
+//プロパティにアクセス。
+const dp = PropertiesService.getScriptProperties(); 
+const beforeValue = dp.getProperty(URL);
+
+//前回のハッシュ値と違う場合先に進む
+if(hashValue != Number(beforeValue)) {
+  dp.setProperty(URL, hashValue);
+
+//lineへ送付
+sendMessage = "\n" + newString + "\n" + newDetailsUrl + "?openExternalBrowser=1";
+const token = '*************************************';
+const message = sendMessage;
+const lineNotifyApi = 'https://notify-api.line.me/api/notify';
+
+const options =
+ {
+    "method"  : "post",
+    "payload" : {"message": message},
+    "headers" : {"Authorization":"Bearer " + token}
+ };
+
+  UrlFetchApp.fetch(lineNotifyApi, options);
+};
+
+  function makeHash(str) {
+    var sum = 0;
+    for(var i = 0; i < str.length; i++) {
+      sum += str.charCodeAt(i)
+      sum %= 1000000
+    }
+    return sum;
+  }
+}
